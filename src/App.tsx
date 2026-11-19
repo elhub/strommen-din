@@ -311,7 +311,7 @@ function Cold({ area }: { area: Area }) {
     <section id="kulde" className="scroll-mt-28">
       <Heading
         n="02"
-        title="Når det blir kaldt, går strømmen"
+        title="Kaldt vær gir høyere strømforbruk"
         lead={`For hver grad kaldere bruker et hjem ${CITY[area].in} ${fmt(perDeg, 1)} kWh mer per døgn — rundt ${kr(perDeg * h.avgPrice)}.`}
       />
       <Card>
