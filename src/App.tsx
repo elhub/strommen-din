@@ -21,8 +21,14 @@ const CITY: Record<Area, { city: string; in: string }> = {
 const C = { use: "#a1a1aa", cheap: "#34d399", dear: "#f87171", price: "#e4c590", temp: "#93c5fd", np: "#e4c590", spot: "#71717a" };
 const fmt = (n: number, d = 0) => n.toLocaleString("nb-NO", { maximumFractionDigits: d, minimumFractionDigits: d });
 const kr = (n: number) => `${fmt(n, n < 10 ? 2 : 0)} kr`;
-const tip = { contentStyle: { background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 } };
-const axis = { stroke: "#52525b", fontSize: 11, tickLine: false, axisLine: false };
+const tip = {
+  contentStyle: { background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 13 },
+  labelStyle: { color: "#fafafa" },
+  itemStyle: { color: "#e4e4e7" },
+};
+// Tick text #a1a1aa on the dark background gives > 7:1 contrast (WCAG AA).
+const axis = { stroke: "#71717a", fontSize: 12, tickLine: false, axisLine: false, tick: { fill: "#a1a1aa" } };
+const focusRing = "rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#e4c590] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 const longDate = (t: string) => new Date(t.slice(0, 10) + "T12:00:00Z").toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" });
 const PERIOD = `${longDate(P.hours[0])} – ${longDate(P.hours.at(-1)!)}`;
 
@@ -59,7 +65,7 @@ function KeyFindings({ area, best }: { area: Area; best: number }) {
         <ol className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
           {items.map((it, i) => (
             <li key={it.id}>
-              <a href={`#${it.id}`} className="group flex gap-3 text-sm leading-relaxed text-muted-foreground transition-colors hover:text-foreground">
+              <a href={`#${it.id}`} className={`group flex gap-3 text-sm leading-relaxed text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
                 <span className="mt-0.5 font-mono text-xs text-[#e4c590]">0{i + 1}</span>
                 <span className="flex-1">{it.text}</span>
                 <ArrowRight className="mt-1 size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -87,7 +93,7 @@ function Method() {
         <CardContent className="divide-y divide-border py-0">
           {rows.map((r) => (
             <details key={r.q} className="group py-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between text-sm [&::-webkit-details-marker]:hidden">
+              <summary className={`flex cursor-pointer list-none items-center justify-between text-sm [&::-webkit-details-marker]:hidden ${focusRing}`}>
                 {r.q}
                 <span className="text-muted-foreground transition-transform group-open:rotate-45">+</span>
               </summary>
@@ -109,14 +115,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased">
+      <a
+        href="#innhold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-[#e4c590] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-zinc-950"
+      >
+        Hopp til innhold
+      </a>
+      <div className="sr-only" aria-live="polite">
+        Viser tall for {CITY[area].city}-regionen
+      </div>
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-          <a href="#" className="flex items-center gap-2 font-medium tracking-tight">
+          <a href="#" className={`flex items-center gap-2 font-medium tracking-tight ${focusRing}`}>
             <Zap className="size-4 text-[#e4c590]" /> Strømmen din
           </a>
           <div className="hidden gap-1 md:flex">
             {AREAS.map((a) => (
-              <Button key={a} size="sm" variant={a === area ? "secondary" : "ghost"} onClick={() => setArea(a)}>
+              <Button key={a} size="sm" variant={a === area ? "secondary" : "ghost"} aria-pressed={a === area} onClick={() => setArea(a)}>
                 {CITY[a].city}
               </Button>
             ))}
@@ -147,7 +162,7 @@ export default function App() {
               <a
                 key={id}
                 href={`#${id}`}
-                className="shrink-0 rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${focusRing} focus-visible:ring-offset-0 focus-visible:ring-inset`}
               >
                 {label}
               </a>
@@ -156,7 +171,7 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-20 px-4 pb-24 sm:px-6">
+      <main id="innhold" tabIndex={-1} className="mx-auto max-w-5xl space-y-20 px-4 pb-24 outline-none sm:px-6">
         <section className="pt-16 sm:pt-24">
           <Badge variant="outline" className="mb-6 font-normal text-muted-foreground">
             Datarapport · {PERIOD}
@@ -251,7 +266,11 @@ function Cheapest({ area, best, win }: { area: Area; best: number; win: (s: numb
               { label: "Spotpris", color: C.price, line: true },
             ]}
           />
-          <CardContent className="h-64 px-2 sm:h-72">
+          <CardContent
+            className="h-64 px-2 sm:h-72"
+            role="img"
+            aria-label={`Søylediagram over forbruk per time. Billigste timer er kl. ${cheap[0]}–${(cheap[3] + 1) % 24}, dyreste er kl. 17–21.`}
+          >
             <ResponsiveContainer>
               <ComposedChart data={h.profile}>
                 <XAxis dataKey="h" {...axis} interval={2} />
@@ -282,7 +301,7 @@ function Cheapest({ area, best, win }: { area: Area; best: number; win: (s: numb
                   </span>
                   <span className="tabular-nums">{it.v} kWh</span>
                 </div>
-                <Slider value={[it.v]} min={0} max={it.max} onValueChange={(v) => it.set((v as number[])[0])} />
+                <Slider value={[it.v]} min={0} max={it.max} thumbLabel={`${it.label}, kWh per dag`} onValueChange={(v) => it.set((v as number[])[0])} />
               </div>
             ))}
             <Separator />
@@ -327,7 +346,7 @@ function Cold({ area }: { area: Area }) {
             { label: "Temperatur (°C)", color: C.temp, line: true },
           ]}
         />
-        <CardContent className="h-56 px-2 sm:h-64">
+        <CardContent className="h-56 px-2 sm:h-64" role="img" aria-label="Graf over forventet strømforbruk per hjem og temperatur de neste 72 timene.">
           <ResponsiveContainer>
             <ComposedChart data={fc}>
               <defs>
@@ -394,7 +413,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardContent className="flex flex-1 flex-col justify-center gap-4 py-2">
-            <svg viewBox={`0 0 ${map.width} ${map.height}`} className="h-auto w-full" role="img" aria-label="Kart over Norges prisområder farget etter selvforsyning">
+            <svg viewBox={`0 0 ${map.width} ${map.height}`} className="h-auto w-full" role="group" aria-label="Kart over Norges prisområder farget etter selvforsyning. Velg en region.">
               {AREAS.map((a) => {
                 const r = all.find((x) => x.area === a)!;
                 return (
@@ -404,8 +423,18 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
                     fill={supplyColor(r.selfSufficiency)}
                     stroke={a === area ? "#fafafa" : "#09090b"}
                     strokeWidth={a === area ? 2.5 : 1}
-                    className="cursor-pointer transition-all duration-300 hover:brightness-125"
+                    className="cursor-pointer outline-none transition-all duration-300 hover:brightness-125 focus-visible:stroke-[#e4c590] focus-visible:[stroke-width:3]"
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={a === area}
+                    aria-label={`${CITY[a].city}: produserer ${fmt(r.selfSufficiency)} prosent av eget forbruk`}
                     onClick={() => setArea(a)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setArea(a);
+                      }
+                    }}
                   >
                     <title>{`${CITY[a].city}: ${fmt(r.selfSufficiency)} %`}</title>
                   </path>
@@ -415,11 +444,11 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
                 const [x, y] = project(...LABEL[a]);
                 const r = all.find((v) => v.area === a)!;
                 return (
-                  <g key={a} className="pointer-events-none" textAnchor="middle">
-                    <text x={x} y={y} fill="#fafafa" fontSize={15} fontWeight={300}>
+                  <g key={a} className="pointer-events-none" textAnchor="middle" aria-hidden="true" stroke="#09090b" strokeLinejoin="round" paintOrder="stroke">
+                    <text x={x} y={y} fill="#ffffff" fontSize={16} fontWeight={500} strokeWidth={4}>
                       {fmt(r.selfSufficiency)} %
                     </text>
-                    <text x={x} y={y + 11} fill="#d4d4d8" fontSize={7.5} letterSpacing={0.8}>
+                    <text x={x} y={y + 12} fill="#ffffff" fontSize={9} fontWeight={500} letterSpacing={0.8} strokeWidth={3}>
                       {CITY[a].city.toUpperCase()}
                     </text>
                   </g>
@@ -428,12 +457,12 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
             </svg>
             <div className="px-2">
               <div className="h-1.5 rounded-full" style={{ background: `linear-gradient(90deg, ${supplyColor(30)}, ${supplyColor(99)}, ${supplyColor(101)}, ${supplyColor(200)})` }} />
-              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                 <span>Underskudd</span>
                 <span>100 %</span>
                 <span>Overskudd</span>
               </div>
-              <p className="mt-2 text-center text-[11px] text-muted-foreground">Klikk på en region for å velge den</p>
+              <p className="mt-2 text-center text-xs text-muted-foreground">Klikk eller bruk Tab og Enter for å velge en region</p>
             </div>
           </CardContent>
         </Card>
@@ -452,7 +481,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
             </CardHeader>
             <CardContent className="space-y-3">
               {ranked.map((r) => (
-                <button key={r.area} onClick={() => setArea(r.area)} className="block w-full text-left">
+                <button key={r.area} onClick={() => setArea(r.area)} aria-pressed={r.area === area} className={`block w-full p-1 text-left ${focusRing}`}>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className={r.area === area ? "text-foreground" : "text-muted-foreground"}>{CITY[r.area].city}</span>
                     <span className="tabular-nums">{fmt(r.selfSufficiency)} %</span>
@@ -478,7 +507,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
                 Vann {fmt(share("hydro"))} % · vind {fmt(share("wind"), 1)} % · sol {fmt(share("solar"), 1)} %.
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-40 px-2">
+            <CardContent className="h-40 px-2" role="img" aria-label="Søylediagram over selvforsyning dag for dag de siste 90 dagene.">
               <ResponsiveContainer>
                 <ComposedChart data={daily}>
                   <XAxis dataKey="date" {...axis} interval={14} />
