@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Bar, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Area as RArea } from "recharts";
-import { ArrowRight, Car, Coins, Info, ShowerHead, Snowflake, WashingMachine, Zap } from "lucide-react";
+import { ArrowRight, Car, Coins, Info, MapPin, ShowerHead, Snowflake, WashingMachine, Zap } from "lucide-react";
 import { AREAS, Area, P, dailyNexus, forecastModel, household, norgespris, osloParts, overview } from "@/analysis";
 import map from "@/data/norway.json";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const CITY: Record<Area, { city: string; in: string }> = {
   NO1: { city: "Oslo", in: "på Østlandet" },
@@ -80,7 +81,7 @@ function Method() {
     { q: "Hvor sikker er Norgespris-analysen?", a: "Den sammenligner to grupper i samme periode. De som valgte Norgespris kan ha andre hus og vaner, så resultatet er en pekepinn – ikke et bevis." },
   ];
   return (
-    <section id="metode" className="scroll-mt-20">
+    <section id="metode" className="scroll-mt-28">
       <Heading n="—" title="Om dataene" lead={`Analysen dekker ${PERIOD}. Alle tall er åpne og kan etterprøves.`} />
       <Card>
         <CardContent className="divide-y divide-border py-0">
@@ -108,19 +109,51 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased">
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2 font-medium tracking-tight">
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+          <a href="#" className="flex items-center gap-2 font-medium tracking-tight">
             <Zap className="size-4 text-[#e4c590]" /> Strømmen din
-          </div>
-          <div className="-mx-1 flex gap-1 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          </a>
+          <div className="hidden gap-1 md:flex">
             {AREAS.map((a) => (
               <Button key={a} size="sm" variant={a === area ? "secondary" : "ghost"} onClick={() => setArea(a)}>
                 {CITY[a].city}
               </Button>
             ))}
           </div>
+          <Select value={area} onValueChange={(v) => v && setArea(v as Area)} items={AREAS.map((a) => ({ value: a, label: CITY[a].city }))}>
+            <SelectTrigger className="h-9 min-w-36 md:hidden" aria-label="Velg region">
+              <MapPin className="size-4 text-[#e4c590]" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {AREAS.map((a) => (
+                <SelectItem key={a} value={a} className="py-2">
+                  {CITY[a].city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        <nav aria-label="Seksjoner" className="mx-auto max-w-5xl [mask-image:linear-gradient(90deg,transparent,#000_16px,#000_calc(100%-16px),transparent)]">
+          <div className="flex gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-5 [&::-webkit-scrollbar]:hidden">
+            {[
+              ["billigst", "Billigst"],
+              ["kulde", "Kulde"],
+              ["forsyning", "Forsyning"],
+              ["norgespris", "Norgespris"],
+              ["metode", "Om dataene"],
+            ].map(([id, label]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="shrink-0 rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
       </header>
 
       <main className="mx-auto max-w-5xl space-y-20 px-4 pb-24 sm:px-6">
@@ -202,7 +235,7 @@ function Cheapest({ area, best, win }: { area: Area; best: number; win: (s: numb
     { icon: ShowerHead, label: "Varmtvann", v: water, set: setWater, max: 8 },
   ];
   return (
-    <section id="billigst" className="scroll-mt-20">
+    <section id="billigst" className="scroll-mt-28">
       <Heading n="01" title="Når er strømmen billigst?" lead="Vi bruker mest strøm når den er dyrest. Å flytte litt av forbruket til natta er den enkleste måten å spare på." />
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
@@ -275,7 +308,7 @@ function Cold({ area }: { area: Area }) {
     return { label: `${day} ${String(o.hour).padStart(2, "0")}:00`, temp: x.temp, kwh: x.predicted / h.homes };
   });
   return (
-    <section id="kulde" className="scroll-mt-20">
+    <section id="kulde" className="scroll-mt-28">
       <Heading
         n="02"
         title="Når det blir kaldt, går strømmen"
@@ -352,7 +385,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
   const prod = d.reduce((s, x) => s + x.production, 0);
   const share = (k: "hydro" | "wind" | "solar") => (100 * d.reduce((s, x) => s + x[k], 0)) / prod;
   return (
-    <section id="forsyning" className="scroll-mt-20">
+    <section id="forsyning" className="scroll-mt-28">
       <Heading
         n="03"
         title="Hvem forsyner hvem?"
@@ -476,7 +509,7 @@ function Norgespris({ area }: { area: Area }) {
   const diff = (n.peakLoadNp - n.peakLoadOther) * 100;
   const max = Math.max(spot, fixed) || 1;
   return (
-    <section id="norgespris" className="scroll-mt-20">
+    <section id="norgespris" className="scroll-mt-28">
       <Heading
         n="04"
         title="Norgespris – lønte det seg, og endret det vanene?"
