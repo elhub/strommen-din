@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Area as RArea } from "recharts";
-import { Car, Coins, ShowerHead, Snowflake, WashingMachine, Zap } from "lucide-react";
-import { AREAS, Area, dailyNexus, forecastModel, household, norgespris, osloParts, overview } from "@/analysis";
+import { ArrowRight, Car, Coins, Info, ShowerHead, Snowflake, WashingMachine, Zap } from "lucide-react";
+import { AREAS, Area, P, dailyNexus, forecastModel, household, norgespris, osloParts, overview } from "@/analysis";
 import map from "@/data/norway.json";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,82 @@ const fmt = (n: number, d = 0) => n.toLocaleString("nb-NO", { maximumFractionDig
 const kr = (n: number) => `${fmt(n, n < 10 ? 2 : 0)} kr`;
 const tip = { contentStyle: { background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 } };
 const axis = { stroke: "#52525b", fontSize: 11, tickLine: false, axisLine: false };
+const longDate = (t: string) => new Date(t.slice(0, 10) + "T12:00:00Z").toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" });
+const PERIOD = `${longDate(P.hours[0])} – ${longDate(P.hours.at(-1)!)}`;
+
+function Legend({ items }: { items: { label: string; color: string; line?: boolean }[] }) {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pt-1 text-xs text-muted-foreground">
+      {items.map((i) => (
+        <span key={i.label} className="flex items-center gap-1.5">
+          <span className={i.line ? "h-0.5 w-3 rounded" : "size-2.5 rounded-sm"} style={{ background: i.color }} />
+          {i.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function KeyFindings({ area, best }: { area: Area; best: number }) {
+  const h = useMemo(() => household(area), [area]);
+  const m = useMemo(() => forecastModel(area, "household"), [area]);
+  const sup = useMemo(() => overview().find((r) => r.area === area)!, [area]);
+  const hh = (n: number) => String(n % 24).padStart(2, "0");
+  const items = [
+    { id: "billigst", text: `Billigst er strømmen kl. ${hh(best)}–${hh(best + 4)}. Dyrest er den om ettermiddagen, når vi bruker mest.` },
+    { id: "kulde", text: `Hver grad kaldere gir rundt ${fmt((m.sensitivity * 24) / h.homes, 1)} kWh mer forbruk per hjem per døgn.` },
+    { id: "forsyning", text: `${CITY[area].city}-regionen produserer ${fmt(sup.selfSufficiency)} % av strømmen den bruker.` },
+    { id: "norgespris", text: sup.npShare < 1 ? "Nesten ingen her har valgt Norgespris – spotprisen var lav." : `${fmt(sup.npShare)} % har Norgespris. Vi ser ingen tydelig endring i når de bruker strøm.` },
+  ];
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="font-normal">Kort fortalt</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          {items.map((it, i) => (
+            <li key={it.id}>
+              <a href={`#${it.id}`} className="group flex gap-3 text-sm leading-relaxed text-muted-foreground transition-colors hover:text-foreground">
+                <span className="mt-0.5 font-mono text-xs text-[#e4c590]">0{i + 1}</span>
+                <span className="flex-1">{it.text}</span>
+                <ArrowRight className="mt-1 size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+              </a>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Method() {
+  const rows = [
+    { q: "Hvor kommer tallene fra?", a: "Forbruk, produksjon og utveksling er timesverdier fra Elhub, summert per prisområde og kundegruppe. Værdata er fra Meteorologisk institutt, og spotprisene er fra Nord Pool." },
+    { q: "Hva er «et vanlig hjem»?", a: "Samlet forbruk for alle husholdninger i området delt på antall husholdningsmålere. Det er et snitt, ikke ditt eget forbruk." },
+    { q: "Hvorfor bare spotpris?", a: "Nettleie, avgifter og mva varierer mellom nettselskap og over tid. Vi viser derfor bare kraftprisen, som er lik for alle i området." },
+    { q: "Hvordan lages prognosen?", a: "En regresjonsmodell som lærer sammenhengen mellom temperatur, tid på døgnet, helg og forbruk fra Elhub-data. Den får yr-varselet som input." },
+    { q: "Hvor sikker er Norgespris-analysen?", a: "Den sammenligner to grupper i samme periode. De som valgte Norgespris kan ha andre hus og vaner, så resultatet er en pekepinn – ikke et bevis." },
+  ];
+  return (
+    <section id="metode" className="scroll-mt-20">
+      <Heading n="—" title="Om dataene" lead={`Analysen dekker ${PERIOD}. Alle tall er åpne og kan etterprøves.`} />
+      <Card>
+        <CardContent className="divide-y divide-border py-0">
+          {rows.map((r) => (
+            <details key={r.q} className="group py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-sm [&::-webkit-details-marker]:hidden">
+                {r.q}
+                <span className="text-muted-foreground transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{r.a}</p>
+            </details>
+          ))}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
 
 export default function App() {
   const [area, setArea] = useState<Area>("NO1");
@@ -50,31 +126,38 @@ export default function App() {
       <main className="mx-auto max-w-5xl space-y-20 px-4 pb-24 sm:px-6">
         <section className="pt-16 sm:pt-24">
           <Badge variant="outline" className="mb-6 font-normal text-muted-foreground">
-            Åpne data fra Elhub · yr · Nord Pool
+            Datarapport · {PERIOD}
           </Badge>
           <h1 className="max-w-3xl text-4xl font-light leading-[1.05] tracking-tight sm:text-6xl">
             Strømmen din, <span className="text-[#e4c590]">forklart</span> med ekte data.
           </h1>
           <p className="mt-6 max-w-2xl text-lg font-light text-muted-foreground">
-            Slik har en vanlig husholdning {CITY[area].in} brukt strøm de siste 90 dagene.
+            Slik har en vanlig husholdning {CITY[area].in} brukt strøm de siste 90 dagene – basert på åpne data fra Elhub, yr og
+            Nord Pool. Velg region øverst.
           </p>
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             <Stat label="Forbruk per hjem" value={`${fmt(h.kwhPerDay, 1)} kWh`} hint="per døgn" />
             <Stat label="Spotpris per måned" value={kr(h.costPerDay * 30)} hint="uten nettleie og mva" />
             <Stat label="Billigste tid" value={`${hh(best)}–${hh(best + 4)}`} hint="fire timer på rad" accent />
           </div>
+          <KeyFindings area={area} best={best} />
         </section>
 
         <Cheapest area={area} best={best} win={win} />
         <Cold area={area} />
         <SelfSupply area={area} setArea={setArea} />
         <Norgespris area={area} />
+        <Method />
       </main>
 
       <Separator />
-      <footer className="mx-auto max-w-5xl px-4 py-8 text-xs text-muted-foreground sm:px-6">
-        Kilder: Elhub Energy Data API (CC BY 4.0), Meteorologisk institutt / yr, Nord Pool via hvakosterstrommen.no. Priser er
-        spotpris uten nettleie, avgifter og mva. Strømstad · Gruppe 6.
+      <footer className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-10 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
+        <div className="flex items-center gap-2">
+          <Zap className="size-3.5 text-[#e4c590]" /> Strømmen din · Strømstad, gruppe 6
+        </div>
+        <div>
+          Data: Elhub (CC BY 4.0) · Meteorologisk institutt · Nord Pool. Priser er spotpris eks. nettleie, avgifter og mva.
+        </div>
       </footer>
     </div>
   );
@@ -95,7 +178,10 @@ function Stat({ label, value, hint, accent }: { label: string; value: string; hi
 function Heading({ n, title, lead }: { n: string; title: string; lead: React.ReactNode }) {
   return (
     <div className="mb-8 max-w-2xl">
-      <div className="mb-3 text-xs tracking-[0.2em] text-muted-foreground">{n}</div>
+      <div className="mb-3 flex items-center gap-3 text-xs tracking-[0.2em] text-muted-foreground">
+        <span className="text-[#e4c590]">{n}</span>
+        <span className="h-px w-10 bg-border" />
+      </div>
       <h2 className="text-3xl font-light tracking-tight sm:text-4xl">{title}</h2>
       <p className="mt-3 text-base font-light text-muted-foreground sm:text-lg">{lead}</p>
     </div>
@@ -116,13 +202,22 @@ function Cheapest({ area, best, win }: { area: Area; best: number; win: (s: numb
     { icon: ShowerHead, label: "Varmtvann", v: water, set: setWater, max: 8 },
   ];
   return (
-    <section>
-      <Heading n="01" title="Når er strømmen billigst?" lead="Vi bruker mest strøm når den er dyrest. Grønt er de billigste timene." />
+    <section id="billigst" className="scroll-mt-20">
+      <Heading n="01" title="Når er strømmen billigst?" lead="Vi bruker mest strøm når den er dyrest. Å flytte litt av forbruket til natta er den enkleste måten å spare på." />
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="font-normal">Ditt forbruk og prisen gjennom døgnet</CardTitle>
+            <CardDescription>Gjennomsnitt per time, siste 90 dager</CardDescription>
           </CardHeader>
+          <Legend
+            items={[
+              { label: "Billigste timer", color: C.cheap },
+              { label: "Dyreste timer", color: C.dear },
+              { label: "Forbruk (kWh)", color: C.use },
+              { label: "Spotpris", color: C.price, line: true },
+            ]}
+          />
           <CardContent className="h-64 px-2 sm:h-72">
             <ResponsiveContainer>
               <ComposedChart data={h.profile}>
@@ -176,10 +271,11 @@ function Cold({ area }: { area: Area }) {
   const perDeg = (m.sensitivity * 24) / h.homes;
   const fc = m.forecast.map((x) => {
     const o = osloParts(x.t);
-    return { label: `${o.hour}:00`, temp: x.temp, kwh: x.predicted / h.homes };
+    const day = new Date(o.date + "T12:00:00Z").toLocaleDateString("nb-NO", { weekday: "short" });
+    return { label: `${day} ${String(o.hour).padStart(2, "0")}:00`, temp: x.temp, kwh: x.predicted / h.homes };
   });
   return (
-    <section>
+    <section id="kulde" className="scroll-mt-20">
       <Heading
         n="02"
         title="Når det blir kaldt, går strømmen"
@@ -192,6 +288,12 @@ function Cold({ area }: { area: Area }) {
           </CardTitle>
           <CardDescription>Modellen traff innenfor {fmt(m.mape, 1)} % på en uke den ikke hadde sett.</CardDescription>
         </CardHeader>
+        <Legend
+          items={[
+            { label: "Forventet forbruk per hjem (kWh/time)", color: C.price },
+            { label: "Temperatur (°C)", color: C.temp, line: true },
+          ]}
+        />
         <CardContent className="h-56 px-2 sm:h-64">
           <ResponsiveContainer>
             <ComposedChart data={fc}>
@@ -250,7 +352,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
   const prod = d.reduce((s, x) => s + x.production, 0);
   const share = (k: "hydro" | "wind" | "solar") => (100 * d.reduce((s, x) => s + x[k], 0)) / prod;
   return (
-    <section>
+    <section id="forsyning" className="scroll-mt-20">
       <Heading
         n="03"
         title="Hvem forsyner hvem?"
@@ -258,7 +360,7 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
       />
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-2">
-          <CardContent className="flex justify-center py-2">
+          <CardContent className="flex flex-1 flex-col justify-center gap-4 py-2">
             <svg viewBox={`0 0 ${map.width} ${map.height}`} className="h-auto w-full" role="img" aria-label="Kart over Norges prisområder farget etter selvforsyning">
               {AREAS.map((a) => {
                 const r = all.find((x) => x.area === a)!;
@@ -291,6 +393,15 @@ function SelfSupply({ area, setArea }: { area: Area; setArea: (a: Area) => void 
                 );
               })}
             </svg>
+            <div className="px-2">
+              <div className="h-1.5 rounded-full" style={{ background: `linear-gradient(90deg, ${supplyColor(30)}, ${supplyColor(99)}, ${supplyColor(101)}, ${supplyColor(200)})` }} />
+              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                <span>Underskudd</span>
+                <span>100 %</span>
+                <span>Overskudd</span>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">Klikk på en region for å velge den</p>
+            </div>
           </CardContent>
         </Card>
         <div className="grid gap-4 lg:col-span-3">
@@ -365,7 +476,7 @@ function Norgespris({ area }: { area: Area }) {
   const diff = (n.peakLoadNp - n.peakLoadOther) * 100;
   const max = Math.max(spot, fixed) || 1;
   return (
-    <section>
+    <section id="norgespris" className="scroll-mt-20">
       <Heading
         n="04"
         title="Norgespris – lønte det seg, og endret det vanene?"
@@ -402,7 +513,7 @@ function Norgespris({ area }: { area: Area }) {
             </CardContent>
           </Card>
           <Alert className="h-full">
-            <Coins />
+            <Info />
             <AlertTitle>{Math.abs(diff) < 3 ? "Ingen tydelig endring i vaner" : diff > 0 ? "Litt mindre fleksible" : "Like fleksible"}</AlertTitle>
             <AlertDescription className="space-y-2">
               <p>
