@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bar, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Area as RArea } from "recharts";
 import { ArrowRight, Car, Coins, Info, MapPin, ShowerHead, Snowflake, WashingMachine, Zap } from "lucide-react";
 import { AREAS, Area, P, dailyNexus, forecastModel, household, norgespris, osloParts, overview } from "@/analysis";
@@ -112,6 +112,14 @@ export default function App() {
   const win = (s: number) => [0, 1, 2, 3].reduce((a, k) => a + h.profile[(s + k) % 24].price, 0) / 4;
   const best = Array.from({ length: 24 }, (_, s) => s).reduce((a, b) => (win(b) < win(a) ? b : a));
   const hh = (n: number) => String(n % 24).padStart(2, "0");
+
+  // The page is rendered client-side, so the browser's native anchor scroll runs before the target exists.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView(), 100);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased">
